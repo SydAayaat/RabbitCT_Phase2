@@ -1,0 +1,40 @@
+# Build products
+build/
+*.o
+*.d
+*.s
+compile_commands.json
+.clangd
+rabbitRunner-*
+
+# Logs and batch output
+logs/
+results/
+*.log
+*.out
+*.err
+slurm-*.out
+
+# RabbitCT generated / raw data
+result.rctd
+*.rctd
+*.vol
+RabbitInput/
+RabbitInput.rct
+RabbitGeometry.rct
+Reference*.vol
+LineRange*.rct
+
+# Tool reports / temporary folders
+maqao_*/
+oneview*/
+*.html
+*.json
+*.csv
+*.tmp
+*.bak
+*~
+
+# Python cache
+__pycache__/
+*.pyc

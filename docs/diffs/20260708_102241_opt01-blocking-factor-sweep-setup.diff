@@ -1,0 +1,27 @@
+diff --git a/config.mk b/config.mk
+index 3fb9666..57a2121 100644
+--- a/config.mk
++++ b/config.mk
+@@ -22,6 +22,8 @@ HIP_ARCH  ?= gfx1030,gfx942
+ #Feature options
+ OPTIONS +=  -DARRAY_ALIGNMENT=64
+ OPTIONS +=  -DMAX_NUM_THREADS=128
++EXTRA_OPTIONS ?=
++OPTIONS += 80092 80092EXTRA_OPTIONS)
+ #OPTIONS +=  -DVERBOSE_AFFINITY
+ #OPTIONS +=  -DVERBOSE_DATASIZE
+ #OPTIONS +=  -DVERBOSE_TIMER
+diff --git a/src/LolaASM.c b/src/LolaASM.c
+index d258781..b4a7d65 100644
+--- a/src/LolaASM.c
++++ b/src/LolaASM.c
+@@ -79,7 +79,9 @@ int lolaAsmFinish(RabbitCtGlobalData *rcgd)
+   return 1;
+ }
+ 
++#ifndef BLOCKING_FACTOR
+ #define BLOCKING_FACTOR 8
++#endif
+ 
+ int lolaAsmBackprojection(RabbitCtGlobalData *rcgd)
+ {

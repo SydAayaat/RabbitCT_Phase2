@@ -79,7 +79,9 @@ int lolaAsmFinish(RabbitCtGlobalData *rcgd)
   return 1;
 }
 
+#ifndef BLOCKING_FACTOR
 #define BLOCKING_FACTOR 8
+#endif
 
 int lolaAsmBackprojection(RabbitCtGlobalData *rcgd)
 {

@@ -7,8 +7,8 @@
 #SBATCH --time=01:30:00
 #SBATCH --constraint=hwperf
 #SBATCH --exclusive
-#SBATCH --output=SPR_FRITZ_BUILDRUN_UNCAPPED_%j.log
-#SBATCH --error=SPR_FRITZ_BUILDRUN_UNCAPPED_%j.log
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
 #SBATCH --open-mode=truncate
 
 set -euo pipefail

@@ -1,0 +1,43 @@
+# Build artifacts
+/build/
+/rabbitRunner-*
+*.o
+*.d
+*.s
+*.out
+*.exe
+compile_commands.json
+.clangd
+
+# Input/output data
+/RabbitInput/
+/RabbitInput.tgz
+/result.rctd
+*.rctd
+*.vol.out
+*.pgm
+proj_*.png
+
+# Logs and reports
+/logs/**/*.log
+/logs/**/*.out
+/logs/**/*.err
+/logs/**/*.csv
+/logs/**/*.txt
+/maqao_reports/
+/GNR_logs/
+/SPR_*.log
+/GNR_*.log
+
+# MAQAO/LIKWID outputs
+*.html
+*.json
+*.lua
+*.xml
+
+# Local editor/cache
+.cache/
+.vscode/
+.idea/
+__pycache__/
+*.pyc

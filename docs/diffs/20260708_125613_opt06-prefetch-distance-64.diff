@@ -1,0 +1,273 @@
+diff --git a/run-bench.sh b/run-bench.sh
+index 11a97fd..38c0fe5 100755
+--- a/run-bench.sh
++++ b/run-bench.sh
+@@ -1,69 +1,40 @@
+ #!/bin/bash
+-# Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+-# All rights reserved. This file is part of RabbitCT.
+-# Use of this source code is governed by a MIT-style
+-# license that can be found in the LICENSE file.
+-
+ RUNNER_LABEL="${RUNNER_LABEL:-AVX512-ICX}"
+ RUNNER="${RUNNER:-./rabbitRunner-${RUNNER_LABEL}}"
+ INPUT="./RabbitInput/RabbitInput.rct"
+ GEOMETRY="./RabbitInput/RabbitGeometry.rct"
+ VARIANT="LolaOMP"
+ BUFFER_SIZE="${BUFFER_SIZE:-1}"
+-
+-# OMP worker threads inherit OMP_STACKSIZE, not the process ulimit. The
+-# default is too small for the L=1024 collapsed parallel-for at high thread
+-# counts and causes segfaults in LolaASM and LolaISPC.
++SIZE=""
++NUM_PROC=""
++VOLOUT=""
+ export OMP_STACKSIZE="${OMP_STACKSIZE:-64M}"
+-
+ usage() {
+     echo "Usage: $0 -s <size> [-v <variant>] [-n <numProc>] [-o <outfile>] [-b <buffer>]"
+-    echo ""
+     echo "  -s <size>      Problem size: 128, 256, 512, 1024"
+-    echo "  -v <variant>   Algorithm variant (default: ${VARIANT})"
+-    echo "                 Available: LolaOMP, LolaBunny, LolaOPT, LolaASM, LolaISPC"
+-    echo "  -n <numProc>   Number of processors for likwid-pin (optional)"
+-    echo "  -o <outfile>   Output volume file (optional)"
+-    echo ""
+-    echo "Environment: RUNNER_LABEL (default: AVX512-ICX), or RUNNER for an explicit binary path"
++    echo "  -v <variant>   Algorithm variant: LolaOMP, LolaBunny, LolaOPT, LolaASM, LolaISPC"
++    echo "  -n <numProc>   Number of processors for likwid-pin optional"
++    echo "  -o <outfile>   Output volume file optional"
++    echo "  -b <buffer>    Projection buffer size default: ${BUFFER_SIZE}"
+     exit 1
+ }
+-
+ while getopts "s:v:n:o:b:h" opt; do
+     case $opt in
+         s) SIZE="$OPTARG" ;;
+         v) VARIANT="$OPTARG" ;;
+         n) NUM_PROC="$OPTARG" ;;
+-        o) VOLOUT="-o $OPTARG" ;;
++        o) VOLOUT="$OPTARG" ;;
+         b) BUFFER_SIZE="$OPTARG" ;;
+         h) usage ;;
+         *) usage ;;
+     esac
+ done
+-
+-if [ -z "$SIZE" ]; then
+-    echo "Error: -s <size> is required"
+-    usage
+-fi
+-
+-if [ ! -x "$RUNNER" ]; then
+-    echo "Error: Runner not found: $RUNNER"
+-    echo "Build with: make TOOLCHAIN=ICX SIMD=AVX512 ENABLE_OPENMP=true ENABLE_LIKWID=true ENABLE_ISPC=false"
+-    exit 1
+-fi
+-
++if [ -z "$SIZE" ]; then echo "Error: -s <size> is required"; usage; fi
++if [ ! -x "$RUNNER" ]; then echo "Error: Runner not found: $RUNNER"; echo "Build with: make TOOLCHAIN=ICX SIMD=AVX512 ENABLE_OPENMP=true ENABLE_LIKWID=true ENABLE_ISPC=false"; exit 1; fi
+ REFVOL="./RabbitInput/Reference${SIZE}.vol"
+-CHECK=""
+-if [ -f "$REFVOL" ]; then
+-    CHECK="-c $REFVOL"
+-fi
+-
+-CMD="$RUNNER -b $BUFFER_SIZE -m $VARIANT -a $GEOMETRY -i $INPUT $CHECK $VOLOUT -s $SIZE"
+-
+-if [ -n "$NUM_PROC" ]; then
+-    PIN="${PIN:-likwid-pin}"
+-    CMD="$PIN -c N:0-${NUM_PROC} $CMD"
+-fi
+-
+-echo "$CMD"
+-exec $CMD
++CMD=( "$RUNNER" -b "$BUFFER_SIZE" -m "$VARIANT" -a "$GEOMETRY" -i "$INPUT" -s "$SIZE" )
++if [ -f "$REFVOL" ]; then CMD+=( -c "$REFVOL" ); fi
++if [ -n "$VOLOUT" ]; then CMD+=( -o "$VOLOUT" ); fi
++if [ -n "$NUM_PROC" ]; then PIN="${PIN:-likwid-pin}"; echo "$PIN -c N:0-${NUM_PROC} ${CMD[*]}"; exec "$PIN" -c "N:0-${NUM_PROC}" "${CMD[@]}"; fi
++echo "${CMD[*]}"
++exec "${CMD[@]}"
+diff --git a/scripts/slurm/spr_fritz_buildrun_uncapped.sbatch b/scripts/slurm/spr_fritz_buildrun_uncapped.sbatch
+old mode 100644
+new mode 100755
+index 641a2f5..423faa0
+--- a/scripts/slurm/spr_fritz_buildrun_uncapped.sbatch
++++ b/scripts/slurm/spr_fritz_buildrun_uncapped.sbatch
+@@ -14,55 +14,35 @@
+ set -euo pipefail
+ unset SLURM_EXPORT_ENV
+ cd "$SLURM_SUBMIT_DIR"
+-
++mkdir -p logs results
+ echo "===== SPR FRITZ BUILD+RUN UNCAPPED START $(date) HOST=$(hostname) JOBID=$SLURM_JOB_ID ====="
+-
+ module purge
+ module load intel/2023.2.1 likwid/5.5.1
+ module list
+-
+-if ! command -v icx >/dev/null 2>&1; then
+-  echo "ERROR: icx not found after loading intel/2023.2.1" >&2
+-  exit 1
+-fi
+-
++command -v icx >/dev/null 2>&1 || { echo "ERROR: icx not found after loading intel/2023.2.1" >&2; exit 1; }
+ export CORES=52
+ export NUMAS=0-3
+ export CPUSEL=S0:0-51
+ export OMP_NUM_THREADS=$CORES
+ export OMP_STACKSIZE=64M
+-export OMP_SCHEDULE=guided,1
+ unset OMP_PLACES
+ unset OMP_PROC_BIND
+-
+-# Build uses TOOLCHAIN=ICX. The output binary label is rabbitRunner-AVX512-ICX.
+ echo "===== BUILD SETTINGS compiler=ICX simd=AVX512 openmp=true likwid=true ispc=false ====="
+-echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS OMP_SCHEDULE=$OMP_SCHEDULE ====="
+-
++echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS ====="
+ hostname
+ date
+ lscpu | egrep 'Model name|CPU MHz|CPU max MHz|CPU min MHz|Core\(s\) per socket|Socket\(s\)|NUMA node' || true
+ numactl -H | egrep 'available|node [0-7] cpus|node distances' || true
+-
+-for f in ./RabbitInput/RabbitInput.rct ./RabbitInput/RabbitGeometry.rct ./RabbitInput/Reference1024.vol ./RabbitInput/LineRange1024-16.rct; do
+-  if [ ! -e "$f" ]; then
+-    echo "ERROR: required input file missing: $f" >&2
+-    exit 1
+-  fi
+-done
+-
++for f in ./RabbitInput/RabbitInput.rct ./RabbitInput/RabbitGeometry.rct ./RabbitInput/Reference1024.vol ./RabbitInput/LineRange1024-16.rct; do if [ ! -e "$f" ]; then echo "ERROR: required input file missing: $f" >&2; exit 1; fi; done
+ chmod +x ./run-bench.sh ./scripts/utils/build_icx_avx512.sh
+ ./scripts/utils/build_icx_avx512.sh
+-
+-if [ ! -x ./rabbitRunner-AVX512-ICX ]; then
+-  echo "ERROR: ./rabbitRunner-AVX512-ICX missing after build" >&2
+-  exit 1
+-fi
+-
+-for ALG in LolaOMP LolaASM; do
+-  echo "===== UNCAPPED SPR $ALG size1024 threads=$CORES ====="
+-  srun --ntasks=1 --cpus-per-task=104 --cpu-bind=none numactl --cpunodebind=$NUMAS --interleave=$NUMAS likwid-pin -c $CPUSEL ./run-bench.sh -s 1024 -v $ALG
+-  echo "===== DONE UNCAPPED SPR $ALG size1024 threads=$CORES ====="
+-done
+-
++if [ ! -x ./rabbitRunner-AVX512-ICX ]; then echo "ERROR: ./rabbitRunner-AVX512-ICX missing after build" >&2; exit 1; fi
++unset OMP_SCHEDULE
++echo "===== UNCAPPED SPR LolaOMP size1024 threads=$CORES ====="
++srun --ntasks=1 --cpus-per-task=104 --cpu-bind=none numactl --cpunodebind=$NUMAS --interleave=$NUMAS likwid-pin -c $CPUSEL ./run-bench.sh -s 1024 -v LolaOMP
++echo "===== DONE UNCAPPED SPR LolaOMP size1024 threads=$CORES ====="
++export OMP_SCHEDULE=guided,1
++echo "===== UNCAPPED SPR LolaASM size1024 threads=$CORES BUFFER_SIZE=8 OMP_SCHEDULE=$OMP_SCHEDULE ====="
++srun --ntasks=1 --cpus-per-task=104 --cpu-bind=none numactl --cpunodebind=$NUMAS --interleave=$NUMAS likwid-pin -c $CPUSEL ./run-bench.sh -s 1024 -v LolaASM -b 8
++echo "===== DONE UNCAPPED SPR LolaASM size1024 threads=$CORES BUFFER_SIZE=8 OMP_SCHEDULE=$OMP_SCHEDULE ====="
+ echo "===== SPR FRITZ BUILD+RUN UNCAPPED END $(date) HOST=$(hostname) JOBID=$SLURM_JOB_ID ====="
+diff --git a/scripts/slurm/spr_fritz_likwid_uncapped.sbatch b/scripts/slurm/spr_fritz_likwid_uncapped.sbatch
+old mode 100644
+new mode 100755
+index 23c4f3d..ccbef6a
+--- a/scripts/slurm/spr_fritz_likwid_uncapped.sbatch
++++ b/scripts/slurm/spr_fritz_likwid_uncapped.sbatch
+@@ -14,18 +14,12 @@
+ set -euo pipefail
+ unset SLURM_EXPORT_ENV
+ cd "$SLURM_SUBMIT_DIR"
+-
++mkdir -p logs results
+ echo "===== SPR FRITZ LIKWID UNCAPPED START $(date) HOST=$(hostname) JOBID=$SLURM_JOB_ID ====="
+-
+ module purge
+ module load intel/2023.2.1 likwid/5.5.1
+ module list
+-
+-if ! command -v icx >/dev/null 2>&1; then
+-  echo "ERROR: icx not found after loading intel/2023.2.1" >&2
+-  exit 1
+-fi
+-
++command -v icx >/dev/null 2>&1 || { echo "ERROR: icx not found after loading intel/2023.2.1" >&2; exit 1; }
+ export CORES=52
+ export NUMAS=0-3
+ export CPUSEL=S0:0-51
+@@ -34,38 +28,25 @@ export OMP_STACKSIZE=64M
+ export OMP_SCHEDULE=guided,1
+ unset OMP_PLACES
+ unset OMP_PROC_BIND
+-
+-# Build uses TOOLCHAIN=ICX. The output binary label is rabbitRunner-AVX512-ICX.
+ echo "===== BUILD SETTINGS compiler=ICX simd=AVX512 openmp=true likwid=true ispc=false ====="
+-echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS OMP_SCHEDULE=$OMP_SCHEDULE ====="
+-
++echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS ====="
+ hostname
+ date
+ lscpu | egrep 'Model name|CPU MHz|CPU max MHz|CPU min MHz|Core\(s\) per socket|Socket\(s\)|NUMA node' || true
+ numactl -H | egrep 'available|node [0-7] cpus|node distances' || true
+ likwid-perfctr -a | egrep 'MEM|FLOPS_SP|ENERGY' || true
+-
+-for f in ./RabbitInput/RabbitInput.rct ./RabbitInput/RabbitGeometry.rct ./RabbitInput/Reference1024.vol ./RabbitInput/LineRange1024-16.rct; do
+-  if [ ! -e "$f" ]; then
+-    echo "ERROR: required input file missing: $f" >&2
+-    exit 1
+-  fi
+-done
+-
++for f in ./RabbitInput/RabbitInput.rct ./RabbitInput/RabbitGeometry.rct ./RabbitInput/Reference1024.vol ./RabbitInput/LineRange1024-16.rct; do if [ ! -e "$f" ]; then echo "ERROR: required input file missing: $f" >&2; exit 1; fi; done
+ chmod +x ./run-bench.sh ./scripts/utils/build_icx_avx512.sh
+ ./scripts/utils/build_icx_avx512.sh
+-
+-if [ ! -x ./rabbitRunner-AVX512-ICX ]; then
+-  echo "ERROR: ./rabbitRunner-AVX512-ICX missing after build" >&2
+-  exit 1
+-fi
+-
+-for ALG in LolaOMP LolaASM; do
+-  for G in MEM FLOPS_SP ENERGY; do
+-    echo "===== UNCAPPED LIKWID SPR $ALG group=$G size1024 threads=$CORES ====="
+-    srun --ntasks=1 --cpus-per-task=104 --cpu-bind=none likwid-perfctr -C $CPUSEL -g $G -O -- numactl --cpunodebind=$NUMAS --interleave=$NUMAS ./run-bench.sh -s 1024 -v $ALG
+-    echo "===== DONE UNCAPPED LIKWID SPR $ALG group=$G size1024 threads=$CORES ====="
+-  done
++if [ ! -x ./rabbitRunner-AVX512-ICX ]; then echo "ERROR: ./rabbitRunner-AVX512-ICX missing after build" >&2; exit 1; fi
++for G in MEM FLOPS_SP ENERGY; do
++  unset OMP_SCHEDULE
++  echo "===== UNCAPPED LIKWID SPR LolaOMP group=$G size1024 threads=$CORES ====="
++  srun --ntasks=1 --cpus-per-task=104 --cpu-bind=none likwid-perfctr -C $CPUSEL -g $G -O -- numactl --cpunodebind=$NUMAS --interleave=$NUMAS ./run-bench.sh -s 1024 -v LolaOMP
++  echo "===== DONE UNCAPPED LIKWID SPR LolaOMP group=$G size1024 threads=$CORES ====="
++  export OMP_SCHEDULE=guided,1
++  echo "===== UNCAPPED LIKWID SPR LolaASM group=$G size1024 threads=$CORES BUFFER_SIZE=8 OMP_SCHEDULE=$OMP_SCHEDULE ====="
++  srun --ntasks=1 --cpus-per-task=104 --cpu-bind=none likwid-perfctr -C $CPUSEL -g $G -O -- numactl --cpunodebind=$NUMAS --interleave=$NUMAS ./run-bench.sh -s 1024 -v LolaASM -b 8
++  echo "===== DONE UNCAPPED LIKWID SPR LolaASM group=$G size1024 threads=$CORES BUFFER_SIZE=8 OMP_SCHEDULE=$OMP_SCHEDULE ====="
+ done
+-
+ echo "===== SPR FRITZ LIKWID UNCAPPED END $(date) HOST=$(hostname) JOBID=$SLURM_JOB_ID ====="
+diff --git a/src/fastRabbitAVX512.S b/src/fastRabbitAVX512.S
+index 00d75f7..e44f6e9 100644
+--- a/src/fastRabbitAVX512.S
++++ b/src/fastRabbitAVX512.S
+@@ -1,3 +1,7 @@
++#ifndef PREFETCH_DISTANCE_BYTES
++#define PREFETCH_DISTANCE_BYTES 64
++#endif
++
+ .intel_syntax noprefix
+ .text
+ .globl fastrabbit
+@@ -153,7 +157,7 @@ pop   rbp
+ 
+ xor i, i
+         prefetcht0      [rcx]
+-        prefetcht2      [rcx + 256]
++        prefetcht2      [rcx + PREFETCH_DISTANCE_BYTES]
+ .align 32
+ .Lloop:
+         vmovaps         w, wx
+@@ -212,7 +216,7 @@ xor i, i
+         vfmadd213ps     val_t, NXTscaly, sval_b
+         vfmadd213ps     val, NXTw2_inv, [r10 + r11 * 4]
+         prefetcht0      [r10 + r9 * 4]
+-        prefetcht2      [r10 + r9 * 4 + 256]
++        prefetcht2      [r10 + r9 * 4 + PREFETCH_DISTANCE_BYTES]
+         nop
+         vmovaps         [r10 + r11 * 4], sval
+ 

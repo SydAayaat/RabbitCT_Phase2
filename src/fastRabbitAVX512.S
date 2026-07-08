@@ -1,3 +1,7 @@
+#ifndef PREFETCH_DISTANCE_BYTES
+#define PREFETCH_DISTANCE_BYTES 64
+#endif
+
 .intel_syntax noprefix
 .text
 .globl fastrabbit
@@ -153,7 +157,7 @@ pop   rbp
 
 xor i, i
         prefetcht0      [rcx]
-        prefetcht2      [rcx + 256]
+        prefetcht2      [rcx + PREFETCH_DISTANCE_BYTES]
 .align 32
 .Lloop:
         vmovaps         w, wx
@@ -212,7 +216,7 @@ xor i, i
         vfmadd213ps     val_t, NXTscaly, sval_b
         vfmadd213ps     val, NXTw2_inv, [r10 + r11 * 4]
         prefetcht0      [r10 + r9 * 4]
-        prefetcht2      [r10 + r9 * 4 + 256]
+        prefetcht2      [r10 + r9 * 4 + PREFETCH_DISTANCE_BYTES]
         nop
         vmovaps         [r10 + r11 * 4], sval
 

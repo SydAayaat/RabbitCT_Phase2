@@ -1,0 +1,38 @@
+diff --git a/scripts/slurm/spr_fritz_buildrun_uncapped.sbatch b/scripts/slurm/spr_fritz_buildrun_uncapped.sbatch
+index fa8f30a..641a2f5 100644
+--- a/scripts/slurm/spr_fritz_buildrun_uncapped.sbatch
++++ b/scripts/slurm/spr_fritz_buildrun_uncapped.sbatch
+@@ -31,12 +31,13 @@ export NUMAS=0-3
+ export CPUSEL=S0:0-51
+ export OMP_NUM_THREADS=$CORES
+ export OMP_STACKSIZE=64M
++export OMP_SCHEDULE=guided,1
+ unset OMP_PLACES
+ unset OMP_PROC_BIND
+ 
+ # Build uses TOOLCHAIN=ICX. The output binary label is rabbitRunner-AVX512-ICX.
+ echo "===== BUILD SETTINGS compiler=ICX simd=AVX512 openmp=true likwid=true ispc=false ====="
+-echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS ====="
++echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS OMP_SCHEDULE=$OMP_SCHEDULE ====="
+ 
+ hostname
+ date
+diff --git a/scripts/slurm/spr_fritz_likwid_uncapped.sbatch b/scripts/slurm/spr_fritz_likwid_uncapped.sbatch
+index 05c8587..23c4f3d 100644
+--- a/scripts/slurm/spr_fritz_likwid_uncapped.sbatch
++++ b/scripts/slurm/spr_fritz_likwid_uncapped.sbatch
+@@ -31,12 +31,13 @@ export NUMAS=0-3
+ export CPUSEL=S0:0-51
+ export OMP_NUM_THREADS=$CORES
+ export OMP_STACKSIZE=64M
++export OMP_SCHEDULE=guided,1
+ unset OMP_PLACES
+ unset OMP_PROC_BIND
+ 
+ # Build uses TOOLCHAIN=ICX. The output binary label is rabbitRunner-AVX512-ICX.
+ echo "===== BUILD SETTINGS compiler=ICX simd=AVX512 openmp=true likwid=true ispc=false ====="
+-echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS ====="
++echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS OMP_SCHEDULE=$OMP_SCHEDULE ====="
+ 
+ hostname
+ date

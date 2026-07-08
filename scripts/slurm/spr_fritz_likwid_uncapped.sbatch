@@ -31,12 +31,13 @@ export NUMAS=0-3
 export CPUSEL=S0:0-51
 export OMP_NUM_THREADS=$CORES
 export OMP_STACKSIZE=64M
+export OMP_SCHEDULE=guided,1
 unset OMP_PLACES
 unset OMP_PROC_BIND
 
 # Build uses TOOLCHAIN=ICX. The output binary label is rabbitRunner-AVX512-ICX.
 echo "===== BUILD SETTINGS compiler=ICX simd=AVX512 openmp=true likwid=true ispc=false ====="
-echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS ====="
+echo "===== RUN SETTINGS frequency=uncapped CORES=$CORES NUMAS=$NUMAS CPUSEL=$CPUSEL OMP_NUM_THREADS=$OMP_NUM_THREADS OMP_SCHEDULE=$OMP_SCHEDULE ====="
 
 hostname
 date

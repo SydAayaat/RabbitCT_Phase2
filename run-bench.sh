@@ -9,6 +9,7 @@ RUNNER="${RUNNER:-./rabbitRunner-${RUNNER_LABEL}}"
 INPUT="./RabbitInput/RabbitInput.rct"
 GEOMETRY="./RabbitInput/RabbitGeometry.rct"
 VARIANT="LolaOMP"
+BUFFER_SIZE="${BUFFER_SIZE:-1}"
 
 # OMP worker threads inherit OMP_STACKSIZE, not the process ulimit. The
 # default is too small for the L=1024 collapsed parallel-for at high thread
@@ -16,7 +17,7 @@ VARIANT="LolaOMP"
 export OMP_STACKSIZE="${OMP_STACKSIZE:-64M}"
 
 usage() {
-    echo "Usage: $0 -s <size> [-v <variant>] [-n <numProc>] [-o <outfile>]"
+    echo "Usage: $0 -s <size> [-v <variant>] [-n <numProc>] [-o <outfile>] [-b <buffer>]"
     echo ""
     echo "  -s <size>      Problem size: 128, 256, 512, 1024"
     echo "  -v <variant>   Algorithm variant (default: ${VARIANT})"
@@ -28,12 +29,13 @@ usage() {
     exit 1
 }
 
-while getopts "s:v:n:o:h" opt; do
+while getopts "s:v:n:o:b:h" opt; do
     case $opt in
         s) SIZE="$OPTARG" ;;
         v) VARIANT="$OPTARG" ;;
         n) NUM_PROC="$OPTARG" ;;
         o) VOLOUT="-o $OPTARG" ;;
+        b) BUFFER_SIZE="$OPTARG" ;;
         h) usage ;;
         *) usage ;;
     esac
@@ -56,7 +58,7 @@ if [ -f "$REFVOL" ]; then
     CHECK="-c $REFVOL"
 fi
 
-CMD="$RUNNER -b 1 -m $VARIANT -a $GEOMETRY -i $INPUT $CHECK $VOLOUT -s $SIZE"
+CMD="$RUNNER -b $BUFFER_SIZE -m $VARIANT -a $GEOMETRY -i $INPUT $CHECK $VOLOUT -s $SIZE"
 
 if [ -n "$NUM_PROC" ]; then
     PIN="${PIN:-likwid-pin}"

@@ -41,3 +41,20 @@ proj_*.png
 .idea/
 __pycache__/
 *.pyc
+
+# Build artifacts
+build/
+*.o
+rabbitRunner-*
+
+# Logs and results
+logs/
+results/
+*.log
+*.out
+*.err
+
+# Large RabbitCT input/output data
+RabbitInput/*
+!RabbitInput/README.md
+*.vol

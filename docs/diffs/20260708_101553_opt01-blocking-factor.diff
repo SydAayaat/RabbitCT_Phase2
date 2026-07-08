@@ -1,0 +1,6 @@
+diff --git a/scripts/utils/parse_rabbitct_logs.py b/scripts/utils/parse_rabbitct_logs.py
+old mode 100644
+new mode 100755
+diff --git a/scripts/utils/save_diff.sh b/scripts/utils/save_diff.sh
+old mode 100644
+new mode 100755
